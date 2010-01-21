@@ -130,9 +130,12 @@ def _build_version_model(model):
     """
     Create a Shadow Model to store versioning info of model records
     """
-    class Meta:        
+    class Meta:
         pass
-        
+    
+    def instance(self):
+        return _instance_from_version(self, self.target_model)
+
     version_attrs = _make_fields_versionable(_get_fields(model))
     
     version_attrs.update({'__module__': model.__module__,
@@ -141,6 +144,8 @@ def _build_version_model(model):
                       'version_number': m.IntegerField(),
                       'change_time': m.DateTimeField(auto_now_add=True),
                       'change_type': m.TextField(),
+                      'instance':instance,
+                      'target_model':model,
                       })
                       
         
@@ -189,7 +194,6 @@ def _decorate_model(model,version_model):
                 latest_version = 0 
             return latest_version
         setattr(model,'get_latest_version',get_latest_version)
-    
     
     #assert 'revert' not in model.__dict__.keys()
     if 'revert' not in model.__dict__.keys():
@@ -257,6 +261,19 @@ def _version_from_instance(model_instance,version_model):
     version_instance.version_number = model_instance.get_latest_version() + 1    
     version_instance.versioned_id = model_instance.id
     return version_instance
+
+def _instance_from_version(version_instance,model):
+    """Recreates an (unsaved) instance of the original object
+    so the same methods will be available and RelatedFields will trace
+    correctly
+    """
+    field_dict = {'id':version_instance.versioned_id}
+    for name,field in _get_fields(model).items():
+        if isinstance(field,RelatedField):
+            field_dict['%s_id'%name] = getattr(version_instance,name)
+        else:
+            field_dict[name] = getattr(version_instance,name)
+    return model(**field_dict)
 
 def _rebuild_from_version(version_instance,model_instance):
     """
