@@ -39,9 +39,7 @@ def version_model(model):
         version_instance.change_type = change_type  
         
         whether_to_save = True
-        only_save_if_changed = False
-        if hasattr (instance, 'only_save_if_changed' ):
-            only_save_if_changed = instance.only_save_version_if_changed
+        only_save_if_changed = getattr(instance,'only_save_if_changed',False)
         
         if only_save_if_changed and version_instance.version_number -2 > 0 and instance.versions[version_instance.version_number - 2]:
             older_instance = instance.versions[version_instance.version_number - 2]
